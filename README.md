@@ -2,8 +2,39 @@
 
 ## Prerequisites
 * An OpenShift cluster
+## Installation with Kourier
+```bash
+# Install OpenShift Serverless operator
+oc apply -f serverless/operator.yaml
 
-## Installation
+# Create an Knative instance
+oc apply -f serverless/knativeserving-kourier.yaml
+
+# Create a secret for kourier to also host all Domains on https port (8443)
+# This is necessary for GRPC passthrough to work
+oc apply -f severless/kourier-tls-secret.yaml
+
+# Install cert-manager operator
+oc apply -f cert-manager/operator.yaml
+
+# Install KServe
+oc apply -f kserve/kserve.yaml
+
+# Config changes according to https://kserve.github.io/website/0.10/admin/serverless/kourier_networking/#install-kourier-networking-layer
+oc edit configmap/inferenceservice-config --namespace kserve
+ingress : |- {
+    "disableIstioVirtualHost": true
+}
+
+# Restart the kserve controller
+oc rollout restart deployment kserve-controller-manager -n kserve
+
+# Install KServe built-in serving runtimes
+oc wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
+oc apply -f kserve/kserve-runtimes.yaml
+```
+
+## Installation with Istio + Mesh
 ```bash
 # Install Service Mesh operators
 oc apply -f service-mesh/operators.yaml
@@ -17,7 +48,7 @@ oc apply -f service-mesh/smmr.yaml
 oc apply -f serverless/operator.yaml
 
 # Create an Knative instance
-oc apply -f serverless/knativeserving.yaml
+oc apply -f serverless/knativeserving-istio.yaml
 
 # Create the Knative gateways
 oc apply -f serverless/gateways.yaml
@@ -38,7 +69,7 @@ oc apply -f kserve/networkpolicies.yaml
 
 ## Testing KServe installation
 ```bash
-# Prerequisites
+# Prerequisites (only relevant for istio)
 oc apply -f kserve/namespace.yaml
 # Allow to run as user 1337 because of https://istio.io/latest/docs/setup/additional-setup/cni/#compatibility-with-application-init-containers
 oc adm policy add-scc-to-user anyuid -z default -n kserve-demo
@@ -47,7 +78,10 @@ oc adm policy add-scc-to-user anyuid -z default -n kserve-demo
 ### From google bucket
 From https://kserve.github.io/website/0.10/get_started/first_isvc/#2-create-an-inferenceservice
 ```bash
+# Istio
 oc apply -f kserve/samples/sklearn-iris.yaml
+# Kourier
+cat kserve/samples/sklearn-iris.yaml | yq - d metadata.annotations r | oc apply -f -
 
 curl -k https://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/input-iris.json
 {"predictions":[1,1]}% 
@@ -55,11 +89,16 @@ curl -k https://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.server
 
 ### From PVC
 ```bash
+# Preparation
 oc apply -f kserve/samples/pvc.yaml
 oc apply -f kserve/samples/pvc-pod.yaml
 oc cp kserve/samples/model.joblib model-store-pod:/pv/model.joblib -c model-store -n kserve-demo
-oc delete -f model-store-pod -n kserve-demo
+oc delete pod -f model-store-pod -n kserve-demo
+
+# Istio
 oc apply -f kserve/samples/sklearn-pvc.yaml
+# Kourier
+cat kserve/samples/sklearn-pvc.yaml | yq - d metadata.annotations r | oc apply -f -
 
 curl -k https://sklearn-pvc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-pvc:predict -d @./kserve/samples/input-iris.json 
 {"predictions":[1,1]}% 
@@ -76,11 +115,12 @@ oc get po -n openshift-ingress -w
 
 From https://kserve.github.io/website/0.10/modelserving/v1beta1/triton/torchscript/#run-a-prediction-with-grpcurl
 ```bash
+# Istio
 oc apply -f kserve/samples/torchscript-grpc.yaml
+# Kourier
+cat kserve/samples/torchscript-grpc.yaml | yq - d 'metadata.annotations."sidecar.istio.io*")' r | oc apply -f -
 
-export INPUT_PATH=
 export PROTO_FILE=kserve/samples/grpc_predict_v2.proto
-
 grpcurl -insecure -proto $PROTO_FILE  torchscript-grpc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com:443 inference.GRPCInferenceService.ServerReady
 {
   "ready": true
@@ -109,14 +149,21 @@ grpcurl -insecure -proto $PROTO_FILE -d @ torchscript-grpc-predictor-kserve-demo
 
 ### Canary Deployment
 ```bash
+# Istio
 oc apply -f kserve/samples/sklearn-iris.yaml
+# Kourier
+cat kserve/samples/sklearn-iris.yaml | yq - d metadata.annotations r | oc apply -f -
+
 oc get isvc sklearn-iris -n kserve-demo
 
 NAME           URL                                                                                          READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION            AGE
 sklearn-iris   http://sklearn-iris-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   True           100                              sklearn-iris-predictor-00001   109s
 
 # Canary rollout
+## Istio
 oc apply -f kserve/samples/sklearn-iris-v2.yaml
+## Kourier
+cat kserve/samples/sklearn-iris-v2.yaml | yq - d metadata.annotations r | oc apply -f -
 
 oc get isvc sklearn-iris -n kserve-demo
 
@@ -162,7 +209,10 @@ curl -k https://prev-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.s
 
 ```bash
 # Tag based routing
-oc apply -f kserve/samples/sklearn-iris-tag-based.yaml
+## Istio
+oc apply -f kserve/samples/istio/sklearn-iris-tag-based.yaml
+## Kourier
+oc apply -f kserve/samples/kourier/sklearn-iris-tag-based.yaml
 
 oc get isvc sklearn-iris -n kserve-demo -ojsonpath="{.status.components.predictor}"  | jq
 
@@ -205,7 +255,10 @@ curl -k https://prev-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.s
 Example is using https://kserve.github.io/website/0.10/modelserving/batcher/batcher/
 
 ```bash
-oc apply -f kserve/samples/torchserve-batch.yaml
+# Istio
+oc apply -f kserve/samples/istio/torchserve-batch.yaml
+# Kourier
+oc apply -f kserve/samples/kourier/torchserve-batch.yaml
 
 # Basic request
 curl -k https://torchserve-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/mnist:predict -d @./kserve/samples/input-mnist.json

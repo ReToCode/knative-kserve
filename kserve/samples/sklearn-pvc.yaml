@@ -6,7 +6,7 @@ metadata:
   annotations:
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/rewriteAppHTTPProbers: "true"
-    serving.knative.openshift.io/enablePassthrough: “true”
+    serving.knative.openshift.io/enablePassthrough: "true"
 spec:
   predictor:
     sklearn:
