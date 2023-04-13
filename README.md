@@ -32,7 +32,7 @@ oc apply -f kserve/kserve.yaml
 oc wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
 oc apply -f kserve/kserve-runtimes.yaml
 
-# Add networkpolicies to allow traffic between knative-serving <> kserve
+# Add NetworkPolicies to allow traffic to kserve webhook
 oc apply -f kserve/networkpolicies.yaml
 ```
 
@@ -106,3 +106,98 @@ grpcurl -insecure -proto $PROTO_FILE -d @ sklearn-grpc-predictor-kserve-demo.app
   ]
 }
 ```
+
+### Canary Deployment
+```bash
+oc apply -f kserve/samples/sklearn-iris.yaml
+oc get isvc sklearn-iris -n kserve-demo
+
+NAME           URL                                                                                          READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION            AGE
+sklearn-iris   http://sklearn-iris-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   True           100                              sklearn-iris-predictor-00001   109s
+
+# Canary rollout
+oc apply -f kserve/samples/sklearn-iris-v2.yaml
+
+oc get isvc sklearn-iris -n kserve-demo
+
+NAME           URL                                                                                          READY   PREV   LATEST   PREVROLLEDOUTREVISION          LATESTREADYREVISION            AGE
+sklearn-iris   http://sklearn-iris-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   False   90     10       sklearn-iris-predictor-00001   sklearn-iris-predictor-00001   3m40s
+
+curl -k https://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/iris-input.json
+{"predictions":[1,1]}
+```
+
+```bash
+# Previous revision
+oc get isvc sklearn-iris -n kserve-demo -ojsonpath="{.status.components.predictor}"  | jq
+
+{
+  "address": {
+    "url": "http://sklearn-iris-predictor.kserve-demo.svc.cluster.local"
+  },
+  "latestCreatedRevision": "sklearn-iris-predictor-00002",
+  "latestReadyRevision": "sklearn-iris-predictor-00002",
+  "latestRolledoutRevision": "sklearn-iris-predictor-00001",
+  "traffic": [
+    {
+      "latestRevision": true,
+      "percent": 10,
+      "revisionName": "sklearn-iris-predictor-00002"
+    },
+    {
+      "latestRevision": false,
+      "percent": 90,
+      "revisionName": "sklearn-iris-predictor-00001",
+      "tag": "prev",
+      "url": "https://prev-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com"
+    }
+  ],
+  "url": "http://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com"
+}
+
+# Curl the previous revision
+curl -k https://prev-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/iris-input.json
+{"predictions":[1,1]}
+```
+
+```bash
+# Tag based routing
+oc apply -f kserve/samples/sklearn-iris-tag-based.yaml
+
+oc get isvc sklearn-iris -n kserve-demo -ojsonpath="{.status.components.predictor}"  | jq
+
+{
+  "address": {
+    "url": "http://sklearn-iris-predictor.kserve-demo.svc.cluster.local"
+  },
+  "latestCreatedRevision": "sklearn-iris-predictor-00003",
+  "latestReadyRevision": "sklearn-iris-predictor-00003",
+  "latestRolledoutRevision": "sklearn-iris-predictor-00001",
+  "traffic": [
+    {
+      "latestRevision": true,
+      "percent": 10,
+      "revisionName": "sklearn-iris-predictor-00003",
+      "tag": "latest",
+      "url": "https://latest-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com"
+    },
+    {
+      "latestRevision": false,
+      "percent": 90,
+      "revisionName": "sklearn-iris-predictor-00001",
+      "tag": "prev",
+      "url": "https://prev-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com"
+    }
+  ],
+  "url": "http://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com"
+}
+
+# Curl the latest revision
+curl -k https://latest-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/iris-input.json
+{"predictions":[1,1]}
+
+# Curl the previous revision
+curl -k https://prev-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/iris-input.json
+{"predictions":[1,1]}%
+```
+
