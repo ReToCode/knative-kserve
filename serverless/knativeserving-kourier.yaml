@@ -3,16 +3,9 @@ kind: KnativeServing
 metadata:
   name: knative-serving
   namespace: knative-serving
+  annotations:
+    serverless.openshift.io/default-enable-http2: "true"
 spec:
-  deployments:
-    - name: net-kourier-controller
-      env:
-        - container: controller
-          envVars:
-          - name: CERTS_SECRET_NAMESPACE
-            value: knative-serving-ingress
-          - name: CERTS_SECRET_NAME
-            value: server-certs
   ingress:
     kourier:
       enabled: true

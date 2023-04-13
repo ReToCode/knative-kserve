@@ -10,10 +10,6 @@ oc apply -f serverless/operator.yaml
 # Create an Knative instance
 oc apply -f serverless/knativeserving-kourier.yaml
 
-# Create a secret for kourier to also host all Domains on https port (8443)
-# This is necessary for GRPC passthrough to work
-oc apply -f severless/kourier-tls-secret.yaml
-
 # Install cert-manager operator
 oc apply -f cert-manager/operator.yaml
 
