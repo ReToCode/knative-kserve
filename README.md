@@ -79,9 +79,9 @@ oc adm policy add-scc-to-user anyuid -z default -n kserve-demo
 From https://kserve.github.io/website/0.10/get_started/first_isvc/#2-create-an-inferenceservice
 ```bash
 # Istio
-oc apply -f kserve/samples/sklearn-iris.yaml
+oc apply -f kserve/samples/istio/sklearn-iris.yaml
 # Kourier
-cat kserve/samples/sklearn-iris.yaml | yq - d metadata.annotations r | oc apply -f -
+oc apply -f kserve/samples/kourier/sklearn-iris.yaml
 
 curl -k https://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/input-iris.json
 {"predictions":[1,1]}% 
@@ -96,9 +96,9 @@ oc cp kserve/samples/model.joblib model-store-pod:/pv/model.joblib -c model-stor
 oc delete pod -f model-store-pod -n kserve-demo
 
 # Istio
-oc apply -f kserve/samples/sklearn-pvc.yaml
+oc apply -f kserve/samples/istio/sklearn-pvc.yaml
 # Kourier
-cat kserve/samples/sklearn-pvc.yaml | yq - d metadata.annotations r | oc apply -f -
+oc apply -f kserve/samples/kourier/sklearn-pvc.yaml
 
 curl -k https://sklearn-pvc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-pvc:predict -d @./kserve/samples/input-iris.json 
 {"predictions":[1,1]}% 
@@ -116,9 +116,9 @@ oc get po -n openshift-ingress -w
 From https://kserve.github.io/website/0.10/modelserving/v1beta1/triton/torchscript/#run-a-prediction-with-grpcurl
 ```bash
 # Istio
-oc apply -f kserve/samples/torchscript-grpc.yaml
+oc apply -f kserve/samples/istio/torchscript-grpc.yaml
 # Kourier
-cat kserve/samples/torchscript-grpc.yaml | yq - d 'metadata.annotations."sidecar.istio.io*")' r | oc apply -f -
+oc apply -f kserve/samples/kourier/torchscript-grpc.yaml
 
 export PROTO_FILE=kserve/samples/grpc_predict_v2.proto
 grpcurl -insecure -proto $PROTO_FILE  torchscript-grpc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com:443 inference.GRPCInferenceService.ServerReady
@@ -150,9 +150,9 @@ grpcurl -insecure -proto $PROTO_FILE -d @ torchscript-grpc-predictor-kserve-demo
 ### Canary Deployment
 ```bash
 # Istio
-oc apply -f kserve/samples/sklearn-iris.yaml
+oc apply -f kserve/samples/istio/sklearn-iris.yaml
 # Kourier
-cat kserve/samples/sklearn-iris.yaml | yq - d metadata.annotations r | oc apply -f -
+oc apply -f kserve/samples/kourier/sklearn-iris.yaml
 
 oc get isvc sklearn-iris -n kserve-demo
 
@@ -161,9 +161,9 @@ sklearn-iris   http://sklearn-iris-kserve-demo.apps.rlehmann-ocp-4-12.serverless
 
 # Canary rollout
 ## Istio
-oc apply -f kserve/samples/sklearn-iris-v2.yaml
+oc apply -f kserve/samples/istio/sklearn-iris-v2.yaml
 ## Kourier
-cat kserve/samples/sklearn-iris-v2.yaml | yq - d metadata.annotations r | oc apply -f -
+oc apply -f kserve/samples/kourier/sklearn-iris-v2.yaml
 
 oc get isvc sklearn-iris -n kserve-demo
 

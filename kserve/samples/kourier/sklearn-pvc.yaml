@@ -1,0 +1,9 @@
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  name: "sklearn-pvc"
+  namespace: kserve-demo
+spec:
+  predictor:
+    sklearn:
+      storageUri: "pvc://model-pv-claim/model.joblib"
