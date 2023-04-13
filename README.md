@@ -1,7 +1,9 @@
 # OpenShift + KServe + Knative
 
 ## Prerequisites
-* An OpenShift cluster
+* An OpenShift cluster, configured with a reachable domain for OCP routes
+* OC client pointing to that cluster
+
 ## Installation with Kourier
 ```bash
 # Install OpenShift Serverless operator
