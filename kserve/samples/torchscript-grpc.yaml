@@ -1,7 +1,7 @@
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: sklearn-grpc
+  name: torchscript-grpc
   namespace: kserve-demo
   annotations:
     sidecar.istio.io/inject: "true"
