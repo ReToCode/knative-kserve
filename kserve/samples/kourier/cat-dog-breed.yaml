@@ -1,0 +1,29 @@
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  name: "cat-dog-classifier"
+  namespace: kserve-demo
+spec:
+  predictor:
+    pytorch:
+      # Override the image because of https://github.com/kserve/kserve/issues/2799#issuecomment-1510740478
+      image: "jagadeeshj/torchserve-kfs:0.7.0"
+      resources:
+        requests:
+          cpu: 100m
+      storageUri: gs://kfserving-examples/models/torchserve/cat_dog_classification
+---
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  name: "dog-breed-classifier"
+  namespace: kserve-demo
+spec:
+  predictor:
+    pytorch:
+      # Override the image because of https://github.com/kserve/kserve/issues/2799#issuecomment-1510740478
+      image: "jagadeeshj/torchserve-kfs:0.7.0"
+      resources:
+        requests:
+          cpu: 100m
+      storageUri: gs://kfserving-examples/models/torchserve/dog_breed_classification

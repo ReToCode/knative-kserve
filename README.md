@@ -307,3 +307,66 @@ Details (average, fastest, slowest):
 Status code distribution:
   [200] 95 responses
 ```
+
+
+### Custom transformer (Service to service communication)
+From https://kserve.github.io/website/0.10/modelserving/v1beta1/transformer/torchserve_image_transformer/
+
+```bash
+# Istio
+oc apply -f kserve/samples/istio/TODO.yaml
+# Kourier
+oc apply -f kserve/samples/kourier/torch-transformer.yaml
+
+# Two Knative Services are created
+oc get ksvc -n kserve-demo
+NAME                            URL                                                                                                            LATESTCREATED                         LATESTREADY                           READY   REASON
+torch-transformer-predictor     https://torch-transformer-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com     torch-transformer-predictor-00002     torch-transformer-predictor-00002     True
+torch-transformer-transformer   https://torch-transformer-transformer-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   torch-transformer-transformer-00001   torch-transformer-transformer-00001   True
+
+# Run prediction
+curl -k https://torch-transformer-transformer-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/mnist:predict -d @./kserve/samples/input-image.json
+
+{"predictions":[[2]]}%
+
+# In this example the transformer communicates with the predictor:
+oc get po -n kserve-demo torch-transformer-transformer-00001-deployment-56db8449cb-wlcbp -o yaml | grep args -A 6
+- args:
+- --model_name
+- mnist
+- --predictor_host
+- torch-transformer-predictor.kserve-demo
+- --http_port
+- "8080"
+
+# So it will actually communicate with the DNS `torch-transformer-predictor.kserve-demo` and reach
+# 1) with kourier: the cluster-local gateway and go through Kourier
+oc get svc -n kserve-demo torch-transformer-predictor
+NAME                          TYPE           CLUSTER-IP   EXTERNAL-IP                                                  PORT(S)   AGE
+torch-transformer-predictor   ExternalName   <none>       kourier-internal.knative-serving-ingress.svc.cluster.local   80/TCP    13m
+
+# 2) with istio: bypass the cluster-local gateway and go directly through the mesh
+TODO
+```
+
+### Inference Graph
+From https://kserve.github.io/website/0.10/modelserving/inference_graph/image_pipeline/
+
+```bash
+# Patch the kserve cluster role to allow setting finalizers on `InferenceGraphs`. Otherwise we end up with
+# "error":"services.serving.knative.dev \"dog-breed-pipeline\" is forbidden: cannot set blockOwnerDeletion if an ownerReference refers to a resource you can't set finalizers on: , <nil>"
+oc apply -f kserve/kserve-cluster-role-patch.yaml
+
+# Istio
+oc apply -f kserve/samples/istio/TODO.yaml
+# Kourier
+oc apply -f kserve/samples/kourier/cat-dog-breed.yaml
+oc apply -f kserve/samples/kourier/inference-graph.yaml
+
+# Get the URL of the inference graph
+oc get ig  dog-breed-pipeline -n kserve-demo
+NAME                 URL                                                                                                 READY   AGE
+dog-breed-pipeline   https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   True    24s
+
+TODO: This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
+```
