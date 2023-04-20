@@ -18,11 +18,10 @@ oc apply -f cert-manager/operator.yaml
 # Install KServe
 oc apply -f kserve/kserve.yaml
 
-# Config changes according to https://kserve.github.io/website/0.10/admin/serverless/kourier_networking/#install-kourier-networking-layer
-oc edit configmap/inferenceservice-config --namespace kserve
-ingress : |- {
-    "disableIstioVirtualHost": true
-}
+# Patch KServe config
+# 1) to enable Kourier according to https://kserve.github.io/website/0.10/admin/serverless/kourier_networking/#install-kourier-networking-layer
+# 2) to override default images because of user-permission issues in OCP
+oc apply -f kserve/kserve-config-patch.yaml
 
 # Restart the kserve controller
 oc rollout restart deployment kserve-controller-manager -n kserve
@@ -309,7 +308,7 @@ Status code distribution:
 ```
 
 
-### Custom transformer (Service to service communication)
+### Custom transformer (has service to service communication)
 From https://kserve.github.io/website/0.10/modelserving/v1beta1/transformer/torchserve_image_transformer/
 
 ```bash
@@ -349,16 +348,18 @@ torch-transformer-predictor   ExternalName   <none>       kourier-internal.knati
 TODO
 ```
 
-### Inference Graph
+### Inference Graph (has service to service communication)
 From https://kserve.github.io/website/0.10/modelserving/inference_graph/image_pipeline/
+This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
 
 ```bash
 # Patch the kserve cluster role to allow setting finalizers on `InferenceGraphs`. Otherwise we end up with
 # "error":"services.serving.knative.dev \"dog-breed-pipeline\" is forbidden: cannot set blockOwnerDeletion if an ownerReference refers to a resource you can't set finalizers on: , <nil>"
+# PR to KServe to fix this: https://github.com/kserve/kserve/pull/2839
 oc apply -f kserve/kserve-cluster-role-patch.yaml
 
 # Istio
-oc apply -f kserve/samples/istio/TODO.yaml
+# TODO
 # Kourier
 oc apply -f kserve/samples/kourier/cat-dog-breed.yaml
 oc apply -f kserve/samples/kourier/inference-graph.yaml
@@ -369,4 +370,31 @@ NAME                 URL                                                        
 dog-breed-pipeline   https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   True    24s
 
 TODO: This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
+```
+
+### Model Explainability
+From https://kserve.github.io/website/0.10/modelserving/explainer/alibi/moviesentiment/
+Has upstream issues: https://github.com/kserve/kserve/issues/2843
+Does only work with a patch on the kserve images: 
+* https://github.com/kserve/kserve/issues/2844
+* https://github.com/kserve/kserve/pull/2845
+
+
+```bash
+# Istio
+# TODO
+
+# Kourier
+oc apply -f kserve/samples/kourier/moviesentiment.yaml
+
+# Predict
+curl -k https://moviesentiment-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/moviesentiment:predict -d '{"instances":["a visually flashy but narratively opaque and emotionally vapid exercise ."]}'
+{"predictions":[0]}
+
+curl -k https://moviesentiment-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/moviesentiment:predict -d '{"instances":["a touching , sophisticated film that almost seems like a documentary in the way it captures an italian immigrant family on the brink of major changes ."]}'
+{"predictions":[1]}
+
+# Explain
+curl -k https://moviesentiment-explainer-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/moviesentiment:explain -d '{"instances":["a visually flashy but narratively opaque and emotionally vapid exercise ."]}'
+{"meta":{"name":"AnchorText","type":["blackbox"],"explanations":["local"],"params":{"seed":0,"sample_proba":0.5},"version":"0.6.5"},"data":{"anchor":["exercise"],"precision":1.0,"coverage":0.5005,"raw":{"feature":[9],"mean":[1.0],"precision":[1.0],"coverage":[0.5005],"examples":[{"covered_true":["UNK UNK flashy but narratively UNK UNK emotionally vapid exercise UNK","UNK visually flashy but UNK UNK UNK UNK vapid exercise .","UNK visually flashy UNK UNK opaque UNK UNK UNK exercise .","UNK UNK UNK but narratively opaque and emotionally vapid exercise UNK","UNK UNK flashy but narratively UNK and emotionally vapid exercise .","a visually UNK but UNK opaque UNK UNK UNK exercise UNK","a visually UNK UNK narratively UNK UNK UNK UNK exercise .","UNK UNK flashy UNK narratively UNK UNK UNK vapid exercise UNK","a UNK flashy UNK UNK UNK and UNK UNK exercise UNK","a visually UNK but UNK UNK and emotionally vapid exercise ."],"covered_false":[],"uncovered_true":[],"uncovered_false":[]}],"all_precision":0,"num_preds":1000000,"success":true,"names":["exercise"],"positions":[63],"instance":"a visually flashy but narratively opaque and emotionally vapid exercise .","instances":["a visually flashy but narratively opaque and emotionally vapid exercise ."],"prediction":[0]}}}
 ```

@@ -1,0 +1,28 @@
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  name: "moviesentiment"
+  namespace: kserve-demo
+  annotations:
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/rewriteAppHTTPProbers: "true"
+    serving.knative.openshift.io/enablePassthrough: "true"
+spec:
+  predictor:
+    minReplicas: 1
+    model:
+      modelFormat:
+        name: sklearn
+      storageUri: "gs://seldon-models/v1.10.0/sklearn/moviesentiment" # has to be adapted, latest does not work upstream
+  explainer:
+    minReplicas: 1
+    alibi:
+      type: AnchorText
+      resources:
+        requests:
+          cpu: 0.1
+          memory: 6Gi
+        limits:
+          memory: 6Gi
+      securityContext:
+        runAsUser: 1000 # this is necessary to match https://github.com/kserve/kserve/blob/master/python/alibiexplainer.Dockerfile#L44
