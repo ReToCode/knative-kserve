@@ -1,0 +1,20 @@
+apiVersion: "serving.kserve.io/v1alpha1"
+kind: "InferenceGraph"
+metadata:
+  name: "dog-breed-pipeline"
+  namespace: kserve-demo
+  annotations:
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/rewriteAppHTTPProbers: "true"
+    serving.knative.openshift.io/enablePassthrough: "true"
+spec:
+  nodes:
+    root:
+      routerType: Sequence
+      steps:
+        - serviceName: cat-dog-classifier
+          name: cat_dog_classifier # step name
+        - serviceName: dog-breed-classifier
+          name: dog_breed_classifier
+          data: $request
+          condition: "[@this].#(predictions.0==\"dog\")"

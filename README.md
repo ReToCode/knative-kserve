@@ -21,7 +21,7 @@ oc apply -f kserve/kserve.yaml
 # Patch KServe config
 # 1) to enable Kourier according to https://kserve.github.io/website/0.10/admin/serverless/kourier_networking/#install-kourier-networking-layer
 # 2) to override default images because of user-permission issues in OCP
-oc apply -f kserve/kserve-config-patch.yaml
+oc apply -f kserve/kserve-config-patch-kourier.yaml
 
 # Restart the kserve controller
 oc rollout restart deployment kserve-controller-manager -n kserve
@@ -55,6 +55,13 @@ oc apply -f cert-manager/operator.yaml
 
 # Install KServe
 oc apply -f kserve/kserve.yaml
+
+# Patch KServe config
+# 1) to override default images because of user-permission issues in OCP
+oc apply -f kserve/kserve-config-patch-istio.yaml
+
+# Restart the kserve controller
+oc rollout restart deployment kserve-controller-manager -n kserve
 
 # Install KServe built-in serving runtimes
 oc wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
@@ -313,7 +320,7 @@ From https://kserve.github.io/website/0.10/modelserving/v1beta1/transformer/torc
 
 ```bash
 # Istio
-oc apply -f kserve/samples/istio/TODO.yaml
+oc apply -f kserve/samples/istio/torch-transformer.yaml
 # Kourier
 oc apply -f kserve/samples/kourier/torch-transformer.yaml
 
@@ -345,12 +352,22 @@ NAME                          TYPE           CLUSTER-IP   EXTERNAL-IP           
 torch-transformer-predictor   ExternalName   <none>       kourier-internal.knative-serving-ingress.svc.cluster.local   80/TCP    13m
 
 # 2) with istio: bypass the cluster-local gateway and go directly through the mesh
-TODO
+oc get svc -n kserve-demo torch-transformer-predictor
+
+NAME                          TYPE           CLUSTER-IP   EXTERNAL-IP                                            PORT(S)   AGE
+torch-transformer-predictor   ExternalName   <none>       knative-local-gateway.istio-system.svc.cluster.local   80/TCP    29s
+
+# bypassed because of the mesh virtual-services:
+oc get virtualservice -n kserve-demo | grep mesh
+NAME                                    GATEWAYS  HOSTS                                                                                                                                                                                                                                                                AGE
+torch-transformer-predictor-mesh        ["mesh"]  ["torch-transformer-predictor.kserve-demo","torch-transformer-predictor.kserve-demo.svc","torch-transformer-predictor.kserve-demo.svc.cluster.local"]                                                                                                                89s
+torch-transformer-transformer-mesh      ["mesh"]  ["torch-transformer-transformer.kserve-demo","torch-transformer-transformer.kserve-demo.svc","torch-transformer-transformer.kserve-demo.svc.cluster.local"]                                                                                                          2m
 ```
 
 ### Inference Graph (has service to service communication)
 From https://kserve.github.io/website/0.10/modelserving/inference_graph/image_pipeline/
 This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
+An additional PR was necessary: https://github.com/kserve/kserve/pull/2839
 
 ```bash
 # Patch the kserve cluster role to allow setting finalizers on `InferenceGraphs`. Otherwise we end up with
@@ -359,7 +376,8 @@ This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pu
 oc apply -f kserve/kserve-cluster-role-patch.yaml
 
 # Istio
-# TODO
+oc apply -f kserve/samples/istio/cat-dog-breed.yaml
+oc apply -f kserve/samples/istio/inference-graph.yaml
 # Kourier
 oc apply -f kserve/samples/kourier/cat-dog-breed.yaml
 oc apply -f kserve/samples/kourier/inference-graph.yaml
@@ -370,6 +388,7 @@ NAME                 URL                                                        
 dog-breed-pipeline   https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   True    24s
 
 TODO: This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
+TODO: also it is broken for istio, as we also need to propagate the labels/annotations for inference-graphs
 ```
 
 ### Model Explainability
@@ -382,7 +401,7 @@ Does only work with a patch on the kserve images:
 
 ```bash
 # Istio
-# TODO
+oc apply -f kserve/samples/istio/moviesentiment.yaml
 
 # Kourier
 oc apply -f kserve/samples/kourier/moviesentiment.yaml
