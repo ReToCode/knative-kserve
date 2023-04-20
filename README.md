@@ -72,10 +72,13 @@ oc apply -f kserve/networkpolicies.yaml
 ```
 
 ## Testing KServe installation
+### Prerequisites
 ```bash
-# Prerequisites (only relevant for istio)
+# Create a demo namespace
 oc apply -f kserve/namespace.yaml
-# Allow to run as user 1337 because of https://istio.io/latest/docs/setup/additional-setup/cni/#compatibility-with-application-init-containers
+
+# For istio: allow to run as user 1337 because of https://istio.io/latest/docs/setup/additional-setup/cni/#compatibility-with-application-init-containers
+# For the python images of KServe: allow to run as user 1000 because of: https://github.com/kserve/kserve/blob/master/python/aiffairness.Dockerfile#L45
 oc adm policy add-scc-to-user anyuid -z default -n kserve-demo
 ```
 
@@ -109,6 +112,8 @@ curl -k https://sklearn-pvc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverl
 ```
 
 ### Using GRPC
+* From https://kserve.github.io/website/0.10/modelserving/v1beta1/triton/torchscript/#run-a-prediction-with-grpcurl
+ 
 **Prerequisites**
 ```bash
 # Enable http2 on OCP ingress to use GRPC against OCP routes
@@ -116,8 +121,6 @@ oc annotate ingresses.config/cluster ingress.operator.openshift.io/default-enabl
 # Wait until ingress rollout is completed
 oc get po -n openshift-ingress -w
 ```
-
-From https://kserve.github.io/website/0.10/modelserving/v1beta1/triton/torchscript/#run-a-prediction-with-grpcurl
 ```bash
 # Istio
 oc apply -f kserve/samples/istio/torchscript-grpc.yaml
@@ -256,7 +259,7 @@ curl -k https://prev-sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.s
 ```
 
 ### Batching
-Example is using https://kserve.github.io/website/0.10/modelserving/batcher/batcher/
+* From https://kserve.github.io/website/0.10/modelserving/batcher/batcher/
 
 ```bash
 # Istio
@@ -316,7 +319,7 @@ Status code distribution:
 
 
 ### Custom transformer (has service to service communication)
-From https://kserve.github.io/website/0.10/modelserving/v1beta1/transformer/torchserve_image_transformer/
+*  From https://kserve.github.io/website/0.10/modelserving/v1beta1/transformer/torchserve_image_transformer/
 
 ```bash
 # Istio
@@ -365,9 +368,9 @@ torch-transformer-transformer-mesh      ["mesh"]  ["torch-transformer-transforme
 ```
 
 ### Inference Graph (has service to service communication)
-From https://kserve.github.io/website/0.10/modelserving/inference_graph/image_pipeline/
-This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
-An additional PR was necessary: https://github.com/kserve/kserve/pull/2839
+* From https://kserve.github.io/website/0.10/modelserving/inference_graph/image_pipeline/
+* This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
+* An additional PR was necessary: https://github.com/kserve/kserve/pull/2839
 
 ```bash
 # Patch the kserve cluster role to allow setting finalizers on `InferenceGraphs`. Otherwise we end up with
@@ -392,11 +395,11 @@ TODO: also it is broken for istio, as we also need to propagate the labels/annot
 ```
 
 ### Model Explainability
-From https://kserve.github.io/website/0.10/modelserving/explainer/alibi/moviesentiment/
-Has upstream issues: https://github.com/kserve/kserve/issues/2843
-Does only work with a patch on the kserve images: 
-* https://github.com/kserve/kserve/issues/2844
-* https://github.com/kserve/kserve/pull/2845
+* From https://kserve.github.io/website/0.10/modelserving/explainer/alibi/moviesentiment/
+* Has upstream issues: https://github.com/kserve/kserve/issues/2843
+* Does only work with a patch on the kserve images: 
+  * https://github.com/kserve/kserve/issues/2844
+  * https://github.com/kserve/kserve/pull/2845
 
 
 ```bash
