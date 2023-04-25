@@ -114,13 +114,6 @@ curl -k https://sklearn-pvc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverl
 ### Using GRPC
 * From https://kserve.github.io/website/0.10/modelserving/v1beta1/triton/torchscript/#run-a-prediction-with-grpcurl
  
-**Prerequisites**
-```bash
-# Enable http2 on OCP ingress to use GRPC against OCP routes
-oc annotate ingresses.config/cluster ingress.operator.openshift.io/default-enable-http2=true
-# Wait until ingress rollout is completed
-oc get po -n openshift-ingress -w
-```
 ```bash
 # Istio
 oc apply -f kserve/samples/istio/torchscript-grpc.yaml
@@ -390,8 +383,69 @@ oc get ig  dog-breed-pipeline -n kserve-demo
 NAME                 URL                                                                                                 READY   AGE
 dog-breed-pipeline   https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   True    24s
 
+# Calling the service
+curl -k https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com -d @./kserve/samples/input-cat.json
+
+# Istio
+Internally, it does something similar to our `Domain-Mapping`, so this 
+> If you use net-istio for Ingress and enable mTLS via SMCP using security.dataPlane.mtls: true, Service Mesh deploys DestinationRules for the *.local host, which does not allow DomainMapping for OpenShift Serverless.
+> To work around this issue, enable mTLS by deploying PeerAuthentication instead of using security.dataPlane.mtls: true.
+also applies here. We cannot use `security.dataPlane.mtls: true` with KServe.
+
+TODO:  UPDATE THE CONFIG, CHECK IF IT WORKS
+
+# Kourier
 TODO: This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
-TODO: also it is broken for istio, as we also need to propagate the labels/annotations for inference-graphs
+```
+
+Additional VS that KServe generates for the wrapper service:
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  annotations:
+    serving.knative.openshift.io/enablePassthrough: "true"
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/rewriteAppHTTPProbers: "true"
+  labels:
+    serviceEnvelope: kserve
+  name: cat-dog-classifier
+  namespace: kserve-demo
+  ownerReferences:
+  - apiVersion: serving.kserve.io/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: InferenceService
+    name: cat-dog-classifier
+    uid: 61182a3a-376a-4db3-a8b0-a9e403b82903
+  uid: 91204ee2-c62f-4eed-be71-a1563502266d
+spec:
+  gateways:
+  - knative-serving/knative-local-gateway
+  - knative-serving/knative-ingress-gateway
+  hosts:
+  - cat-dog-classifier.kserve-demo.svc.cluster.local
+  - cat-dog-classifier-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com
+  http:
+  - headers:
+      request:
+        set:
+          Host: cat-dog-classifier-predictor.kserve-demo.svc.cluster.local
+    match:
+    - authority:
+        regex: ^cat-dog-classifier\.kserve-demo(\.svc(\.cluster\.local)?)?(?::\d{1,5})?$
+      gateways:
+      - knative-serving/knative-local-gateway
+    - authority:
+        regex: ^cat-dog-classifier-kserve-demo\.apps\.rlehmann-ocp-4-12\.serverless\.devcluster\.openshift\.com(?::\d{1,5})?$
+      gateways:
+      - knative-serving/knative-ingress-gateway
+    route:
+    - destination:
+        host: knative-local-gateway.istio-system.svc.cluster.local
+        port:
+          number: 80 -> 8081 (http2)
+      weight: 100
 ```
 
 ### Model Explainability
