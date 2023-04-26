@@ -13,6 +13,6 @@ spec:
       enabled: false
   security:
     dataPlane:
-      mtls: true
+      mtls: false # otherwise inference-graph will not work. We use PeerAuthentication resources to force mTLS
   profiles:
     - default
