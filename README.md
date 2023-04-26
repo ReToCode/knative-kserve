@@ -400,6 +400,7 @@ also applies here. We cannot use `security.dataPlane.mtls: true` with KServe.
 
 # Kourier
 TODO: This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
+Issue created: https://github.com/kserve/kserve/issues/2856
 ```
 
 Additional VS that KServe generates for the wrapper service:
