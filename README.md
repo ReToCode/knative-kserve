@@ -390,13 +390,13 @@ dog-breed-pipeline   https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-
 # Calling the service
 curl -k https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com -d @./kserve/samples/input-cat.json
 
-# Istio
+{"predictions": ["cat"]}% 
+
+# Note for Istio
 Internally, it does something similar to our `Domain-Mapping`, so this 
 > If you use net-istio for Ingress and enable mTLS via SMCP using security.dataPlane.mtls: true, Service Mesh deploys DestinationRules for the *.local host, which does not allow DomainMapping for OpenShift Serverless.
 > To work around this issue, enable mTLS by deploying PeerAuthentication instead of using security.dataPlane.mtls: true.
 also applies here. We cannot use `security.dataPlane.mtls: true` with KServe.
-
-TODO:  UPDATE THE CONFIG, CHECK IF IT WORKS
 
 # Kourier
 TODO: This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.
