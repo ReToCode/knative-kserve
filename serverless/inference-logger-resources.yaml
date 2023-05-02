@@ -1,0 +1,47 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: message-dumper
+  namespace: kserve-demo
+spec:
+  template:
+    spec:
+      containers:
+        - image: gcr.io/knative-releases/knative.dev/eventing-contrib/cmd/event_display
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: imc-channel
+  namespace: knative-eventing
+data:
+  channel-template-spec: |
+    apiVersion: messaging.knative.dev/v1
+    kind: InMemoryChannel
+---
+apiVersion: eventing.knative.dev/v1
+kind: Broker
+metadata:
+  name: default
+  namespace: kserve-demo
+  annotations:
+    eventing.knative.dev/broker.class: MTChannelBasedBroker
+spec:
+  config:
+    apiVersion: v1
+    kind: ConfigMap
+    name: imc-channel
+    namespace: knative-eventing
+---
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: message-dumper-trigger
+  namespace: kserve-demo
+spec:
+  broker: default
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: message-dumper
