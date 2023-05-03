@@ -49,7 +49,7 @@ oc apply -f service-mesh/peer-authentication.yaml # we need this because of http
 # Install OpenShift Serverless operator
 oc apply -f serverless/operator.yaml
 
-# Create an Knative instance
+# Create a Knative Serving installation
 oc apply -f serverless/knativeserving-istio.yaml
 
 # Create the Knative gateways
@@ -479,4 +479,73 @@ curl -k https://moviesentiment-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serv
 # Explain
 curl -k https://moviesentiment-explainer-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/moviesentiment:explain -d '{"instances":["a visually flashy but narratively opaque and emotionally vapid exercise ."]}'
 {"meta":{"name":"AnchorText","type":["blackbox"],"explanations":["local"],"params":{"seed":0,"sample_proba":0.5},"version":"0.6.5"},"data":{"anchor":["exercise"],"precision":1.0,"coverage":0.5005,"raw":{"feature":[9],"mean":[1.0],"precision":[1.0],"coverage":[0.5005],"examples":[{"covered_true":["UNK UNK flashy but narratively UNK UNK emotionally vapid exercise UNK","UNK visually flashy but UNK UNK UNK UNK vapid exercise .","UNK visually flashy UNK UNK opaque UNK UNK UNK exercise .","UNK UNK UNK but narratively opaque and emotionally vapid exercise UNK","UNK UNK flashy but narratively UNK and emotionally vapid exercise .","a visually UNK but UNK opaque UNK UNK UNK exercise UNK","a visually UNK UNK narratively UNK UNK UNK UNK exercise .","UNK UNK flashy UNK narratively UNK UNK UNK vapid exercise UNK","a UNK flashy UNK UNK UNK and UNK UNK exercise UNK","a visually UNK but UNK UNK and emotionally vapid exercise ."],"covered_false":[],"uncovered_true":[],"uncovered_false":[]}],"all_precision":0,"num_preds":1000000,"success":true,"names":["exercise"],"positions":[63],"instance":"a visually flashy but narratively opaque and emotionally vapid exercise .","instances":["a visually flashy but narratively opaque and emotionally vapid exercise ."],"prediction":[0]}}}
+```
+## Testing KServe with Knative Eventing
+
+### Prerequisites
+
+Make sure you followed the instructions in [Testing KServe installation - Prerequisites](#prerequisites-1) first.
+
+Then follow these:
+```bash
+
+# Create a Knative Eventing installation
+oc apply -f serverless/knativeeventing.yaml
+
+# Create resources for inference logging: broker, trigger, message dumper ksvc
+oc apply -f serverless/inference-logger-resources.yaml
+```
+
+### Inference logging
+
+```bash
+# Same as the previous tests, only this time we have inference log events sent to Knative Eventing Broker
+$ oc apply -f kserve/samples/istio/sklearn-iris-inference-logging.yaml
+
+$ curl -k https://sklearn-iris-predictor-kserve-demo.apps.aliok-c088.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/input-iris.json
+{"predictions":[1,1]}% 
+
+$ k logs -n kserve-demo message-dumper-00001-deployment-7f7874bd66-ssv89
+
+☁️  cloudevents.Event
+Validation: valid
+Context Attributes,
+  specversion: 1.0
+  type: org.kubeflow.serving.inference.response
+  source: http://localhost:9081/
+  id: 464d1291-1bbd-4c05-b592-d6ae24de6555
+  time: 2023-05-02T14:05:37.874021224Z
+  datacontenttype: application/json
+Extensions,
+  component: predictor
+  endpoint:
+  inferenceservicename: sklearn-iris
+  knativearrivaltime: 2023-05-02T14:05:37.877365133Z
+  namespace: kserve-demo
+  traceparent: 00-aa63c8db0dff507e246a7abf10a21a7d-d082068f6e5be1d3-00
+Data,
+  {
+    "predictions": [
+      1,
+      1
+    ]
+  }
+☁️  cloudevents.Event
+Validation: valid
+Context Attributes,
+  specversion: 1.0
+  type: org.kubeflow.serving.inference.request
+  source: http://localhost:9081/
+  id: 464d1291-1bbd-4c05-b592-d6ae24de6555
+  time: 2023-05-02T14:05:37.871883206Z
+  datacontenttype: application/x-www-form-urlencoded
+Extensions,
+  component: predictor
+  endpoint:
+  inferenceservicename: sklearn-iris
+  knativearrivaltime: 2023-05-02T14:05:37.878989816Z
+  namespace: kserve-demo
+  traceparent: 00-f53727be09d26dfb9f7d75bb436a9280-d6b647fe8adc12ff-00
+Data,
+  {  "instances": [    [6.8,  2.8,  4.8,  1.4],    [6.0,  3.4,  4.5,  1.6]  ]}
 ```
