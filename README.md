@@ -498,6 +498,29 @@ oc apply -f serverless/inference-logger-resources.yaml
 
 ### Inference logging
 
+```
+                   ┌───────────────────┐
+                   │                   │
+                   │ InferenceService  │
+                   │                   │
+┌──────────────┐   │   ┌───────────┐   │
+│              ├───┼──►│ Predictor │   │        ┌────────────────┐             ┌──────────────────┐
+│ Client       │   │   │  Service  │   │        │                ├────────┐    │                  │
+│              │◄──┼───┤           │   │   ┌───►│    Broker      │ Trigger├───►│  Event Display   │
+└──────────────┘   │   └───────────┘   │   │    │                ├────────┘    │   Service        │
+                   │                   │   │    └────────────────┘             │                  │
+                   │   ┌───────────┐   │   │                                   └──────────────────┘
+                   │   │           │   │   │
+                   │   │ Logger    ├───┼───┘
+                   │   │           │   │
+                   │   └───────────┘   │
+                   │                   │
+                   │                   │
+                   │                   │
+                   │                   │
+                   └───────────────────┘
+```
+
 ```bash
 # Same as the previous tests, only this time we have inference log events sent to Knative Eventing Broker
 $ oc apply -f kserve/samples/istio/sklearn-iris-inference-logging.yaml
@@ -549,3 +572,37 @@ Extensions,
 Data,
   {  "instances": [    [6.8,  2.8,  4.8,  1.4],    [6.0,  3.4,  4.5,  1.6]  ]}
 ```
+
+PRs:
+- https://github.com/kserve/kserve/pull/2792
+
+### Drift detection
+
+```
+                   ┌───────────────────┐
+                   │                   │
+                   │ InferenceService  │
+                   │                   │
+┌──────────────┐   │   ┌───────────┐   │
+│              ├───┼──►│ Predictor │   │        ┌────────────────┐             ┌──────────────────┐
+│ Client       │   │   │  Service  │   │        │                ├────────┐    │                  │
+│              │◄──┼───┤           │   │   ┌───►│    Broker      │ Trigger├───►│  Drift Detector  │
+└──────────────┘   │   └───────────┘   │   │    │                ├────────┘    │   Service        │
+                   │                   │   │    └────────────────┘             │                  │
+                   │   ┌───────────┐   │   │                                   └──────────────────┘
+                   │   │           │   │   │
+                   │   │ Logger    ├───┼───┘
+                   │   │           │   │
+                   │   └───────────┘   │
+                   │                   │
+                   │                   │
+                   │                   │
+                   │                   │
+                   └───────────────────┘
+```
+
+See https://github.com/aliok/yaml/tree/main/data-science#drift-detection-on-openshift
+
+PRs:
+- https://github.com/kserve/kserve/pull/2787
+- https://github.com/kserve/kserve/pull/2888
