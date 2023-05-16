@@ -141,7 +141,7 @@ curl -k https://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.server
 oc apply -f kserve/samples/pvc.yaml
 oc apply -f kserve/samples/pvc-pod.yaml
 oc cp kserve/samples/model.joblib model-store-pod:/pv/model.joblib -c model-store -n kserve-demo
-oc delete pod -f model-store-pod -n kserve-demo
+oc delete pod --force model-store-pod -n kserve-demo
 
 # Istio
 oc apply -f kserve/samples/istio/sklearn-pvc.yaml
