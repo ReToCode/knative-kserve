@@ -20269,7 +20269,7 @@ spec:
           value: kserve-webhook-server-cert
         - name: ISTIO_WITH_CNI_AND_DNS_PROXY
           value: "true"
-        image: quay.io/rlehmann/kserve-controller:v0.10.1
+        image: quay.io/rlehmann/kserve-controller:v0.10.2
         imagePullPolicy: Always
         name: manager
         ports:
