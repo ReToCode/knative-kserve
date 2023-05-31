@@ -94,5 +94,13 @@ curl -k https://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.server
 
 ## Deploy and test an Inference Service with GRPC
 
-TODO
+> ⛔️ Note: this does currently not work upstream. I created an issue: https://github.com/kserve/kserve/issues/2961 
 
+```bash
+oc apply -f kserve/samples/istio-raw/torchscript-grpc.yaml
+
+export PROTO_FILE=kserve/samples/grpc_predict_v2.proto
+grpcurl -insecure -proto $PROTO_FILE  torchscript-grpc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com:443 inference.GRPCInferenceService.ServerReady
+
+# DOES NOT WORK
+```
