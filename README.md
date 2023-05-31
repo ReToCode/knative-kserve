@@ -50,6 +50,7 @@ oc apply -f kserve/kserve-runtimes.yaml
 ```bash
 # Install Service Mesh operators
 oc apply -f service-mesh/operators.yaml
+sleep 30
 oc wait --for=condition=ready pod -l name=istio-operator -n openshift-operators --timeout=300s
 oc wait --for=condition=ready pod -l name=jaeger-operator -n openshift-operators --timeout=300s
 oc wait --for=condition=ready pod -l name=kiali-operator -n openshift-operators --timeout=300s
@@ -57,6 +58,7 @@ oc wait --for=condition=ready pod -l name=kiali-operator -n openshift-operators 
 # Create an istio instance
 oc apply -f service-mesh/namespace.yaml
 oc apply -f service-mesh/smcp.yaml
+sleep 15
 oc wait --for=condition=ready pod -l app=istiod -n istio-system --timeout=300s
 oc wait --for=condition=ready pod -l app=istio-ingressgateway -n istio-system --timeout=300s
 oc wait --for=condition=ready pod -l app=istio-egressgateway -n istio-system --timeout=300s
@@ -69,12 +71,14 @@ oc apply -f service-mesh/peer-authentication.yaml # we need this because of http
 
 # Install OpenShift Serverless operator
 oc apply -f serverless/operator.yaml
+sleep 30
 oc wait --for=condition=ready pod -l name=knative-openshift -n openshift-serverless --timeout=300s
 oc wait --for=condition=ready pod -l name=knative-openshift-ingress -n openshift-serverless --timeout=300s
 oc wait --for=condition=ready pod -l name=knative-operator -n openshift-serverless --timeout=300s
 
 # Create a Knative Serving installation
 oc apply -f serverless/knativeserving-istio.yaml
+sleep 15
 oc wait --for=condition=ready pod -l app=controller -n knative-serving --timeout=300s
 oc wait --for=condition=ready pod -l app=net-istio-controller -n knative-serving --timeout=300s
 oc wait --for=condition=ready pod -l app=net-istio-webhook -n knative-serving --timeout=300s
@@ -89,6 +93,7 @@ oc apply -f serverless/gateways.yaml
 
 # Install cert-manager operator
 oc apply -f cert-manager/operator.yaml
+sleep 60
 oc wait --for=condition=ready pod -l app=webhook -n cert-manager --timeout=300s
 oc wait --for=condition=ready pod -l app=cainjector -n cert-manager --timeout=300s
 oc wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=300s

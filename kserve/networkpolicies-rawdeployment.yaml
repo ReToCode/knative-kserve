@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-openshift-ingress-ns
+  namespace: kserve-demo
+spec:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: openshift-ingress
+        - namespaceSelector:
+            matchLabels:
+              name: openshift-ingress-canary
+  podSelector: {}
+  policyTypes:
+    - Ingress
