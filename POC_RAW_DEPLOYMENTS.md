@@ -16,7 +16,7 @@ Based on https://kserve.github.io/website/0.10/admin/kubernetes_deployment/
 
 ### Basic setup
 
-Install KServe, OSSM and OpenShift Serverless according to the [README](./README.md#installation-with-istio--mesh).
+Install KServe, OSSM and OpenShift Serverless according to the [README](./README.md#installation-with-istio--mesh) and also do [Prerequisites](./README.md#prerequisites-1)
 
 ### Additional changes
 
@@ -29,13 +29,10 @@ Install KServe, OSSM and OpenShift Serverless according to the [README](./README
 
 ```bash
 oc apply -f kserve/kserve-config-patch-rawdeployment.yaml
-
-echo "Your domain template is:"
 cat kserve/kserve-config-patch-rawdeployment.yaml | grep ingressDomain
 ```
 ```text
-Your domain template is:
-        "ingressDomain"  : "apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com",
+"ingressDomain"  : "apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com",
 ```
 
 ```bash
@@ -46,14 +43,13 @@ oc delete -f service-mesh/peer-authentication.yaml
 oc apply -f kserve/networkpolicies-rawdeployment.yaml
 ```
 
-## Deploy and test an Inference Service
+## Deploy and test an Inference Service on KServe as raw deployment
 
 > 📝 Note: KServe creates `Ingress` objects for http. As our default OpenShift only allows https routes, we need an additional annotation on the `Route` object for routing to work: `route.openshift.io/termination: "edge"` .
 > The examples below already have that additional annotation.
 
 ```bash
 oc apply -f kserve/samples/istio-raw/sklearn-iris.yaml
-
 ```
 
 Which creates
@@ -102,5 +98,39 @@ oc apply -f kserve/samples/istio-raw/torchscript-grpc.yaml
 export PROTO_FILE=kserve/samples/grpc_predict_v2.proto
 grpcurl -insecure -proto $PROTO_FILE  torchscript-grpc-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com:443 inference.GRPCInferenceService.ServerReady
 
-# DOES NOT WORK
+# DOES CURRENTLY NOT WORK
+```
+
+## Setup ModelMesh alongside
+
+```bash
+RELEASE=release-0.10
+git clone -b $RELEASE --depth 1 --single-branch https://github.com/kserve/modelmesh-serving.git
+cd modelmesh-serving
+
+oc create namespace modelmesh-serving
+./scripts/install.sh --namespace-scope-mode --namespace modelmesh-serving --quickstart
+cd ..
+```
+
+## Deploy and test an Inference Service on ModelMesh
+
+```bash
+oc apply -f modelmesh/samples/sklearn.yaml
+```
+
+```text
+oc get -n modelmesh-serving pod
+NAME                                             READY   STATUS    RESTARTS   AGE
+etcd-7d7db5bb8f-spnql                            1/1     Running   0          11m
+minio-676868b987-4bp8g                           1/1     Running   0          11m
+modelmesh-controller-87db89d44-bc6cd             1/1     Running   0          10m
+modelmesh-serving-mlserver-0.x-8d7d594d7-dpl4x   4/4     Running   0          5m13s
+modelmesh-serving-mlserver-0.x-8d7d594d7-w44cq   4/4     Running   0          5m13s
+```
+
+The KServe controller is ignoring the ModelMesh `InferenceService` 
+```text
+manager {"level":"info","ts":1685611623.0801382,"logger":"v1beta1Controllers.InferenceService","msg":"Inference service deployment mode ","deployment mode ":"ModelMesh"}
+manager {"level":"info","ts":1685611623.08016,"logger":"v1beta1Controllers.InferenceService","msg":"Skipping reconciliation for InferenceService","serving.kserve.io/deploymentMode":"ModelMesh","apiVersion":"serving.kserve.io/v1beta1","isvc":"example-sklearn-isvc"}
 ```
