@@ -124,6 +124,7 @@ oc apply -f kserve/networkpolicies.yaml
 oc apply -f kserve/namespace.yaml
 
 # For istio: allow to run as user 1337 because of https://istio.io/latest/docs/setup/additional-setup/cni/#compatibility-with-application-init-containers
+# This workaround is also needed for the Kourier setup, see https://github.com/ReToCode/knative-kserve/issues/4
 # For the python images of KServe: allow to run as user 1000 because of: https://github.com/kserve/kserve/blob/master/python/aiffairness.Dockerfile#L45
 oc adm policy add-scc-to-user anyuid -z default -n kserve-demo
 ```
