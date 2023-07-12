@@ -1,0 +1,22 @@
+---
+apiVersion: kfdef.apps.kubeflow.org/v1
+kind: KfDef
+metadata:
+  name: rhods-kserve
+  namespace: redhat-ods-applications
+spec:
+  applications:
+    - kustomizeConfig:
+        repoRef:
+          name: manifests
+          path: odh-common
+      name: odh-common
+    - kustomizeConfig:
+        repoRef:
+          name: manifests
+          path: kserve
+      name: kserve
+  repos:
+    - name: manifests
+      uri: https://api.github.com/repos/retocode/odh-manifests/tarball/kserve-anyuid-fix
+  version: master

@@ -1,52 +1,10 @@
-# OpenShift + KServe + Knative
+# OpenShift + KServe + Knative with Service Mesh
 
 ## Prerequisites
 * An OpenShift cluster, configured with a reachable domain for OCP routes
 * OC client pointing to that cluster
 
-## Installation with Kourier
-```bash
-# Install OpenShift Serverless operator
-oc apply -f serverless/operator.yaml
-oc wait --for=condition=ready pod -l name=knative-openshift -n openshift-serverless --timeout=300s
-oc wait --for=condition=ready pod -l name=knative-openshift-ingress -n openshift-serverless --timeout=300s
-oc wait --for=condition=ready pod -l name=knative-operator -n openshift-serverless --timeout=300s
-
-# Create an Knative instance
-oc apply -f serverless/knativeserving-kourier.yaml
-oc wait --for=condition=ready pod -l app=controller -n knative-serving --timeout=300s
-oc wait --for=condition=ready pod -l app=autoscaler-hpa -n knative-serving --timeout=300s
-oc wait --for=condition=ready pod -l app=domain-mapping -n knative-serving --timeout=300s
-oc wait --for=condition=ready pod -l app=webhook -n knative-serving --timeout=300s
-oc wait --for=condition=ready pod -l app=activator -n knative-serving --timeout=300s
-oc wait --for=condition=ready pod -l app=autoscaler -n knative-serving --timeout=300s
-oc wait --for=condition=ready pod -l app=net-kourier-controller -n knative-serving-ingress --timeout=300s
-oc wait --for=condition=ready pod -l app=3scale-kourier-gateway -n knative-serving-ingress --timeout=300s
-
-# Install cert-manager operator
-oc apply -f cert-manager/operator.yaml
-oc wait --for=condition=ready pod -l app=webhook -n cert-manager --timeout=300s
-oc wait --for=condition=ready pod -l app=cainjector -n cert-manager --timeout=300s
-oc wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=300s
-
-# Install KServe
-oc apply -f kserve/kserve.yaml
-oc wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
-
-# Patch KServe config
-# 1) to enable Kourier according to https://kserve.github.io/website/0.10/admin/serverless/kourier_networking/#install-kourier-networking-layer
-# 2) to override default images because of user-permission issues in OCP
-oc apply -f kserve/kserve-config-patch-kourier.yaml
-
-# Restart the kserve controller
-oc rollout restart deployment kserve-controller-manager -n kserve
-
-# Install KServe built-in serving runtimes
-oc wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
-oc apply -f kserve/kserve-runtimes.yaml
-```
-
-## Installation with Istio + Mesh
+## Installation of Knative with Service Mesh
 ```bash
 # Install Service Mesh operators
 oc apply -f service-mesh/operators.yaml
@@ -97,36 +55,65 @@ sleep 60
 oc wait --for=condition=ready pod -l app=webhook -n cert-manager --timeout=300s
 oc wait --for=condition=ready pod -l app=cainjector -n cert-manager --timeout=300s
 oc wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=300s
-
-# Install KServe
-oc apply -f kserve/kserve.yaml
-oc wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
-
-# Patch KServe config
-# 1) to override default images because of user-permission issues in OCP
-oc apply -f kserve/kserve-config-patch-istio.yaml
-
-# Restart the kserve controller
-oc rollout restart deployment kserve-controller-manager -n kserve
-
-# Install KServe built-in serving runtimes
-oc wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
-oc apply -f kserve/kserve-runtimes.yaml
-
-# Add NetworkPolicies to allow traffic to kserve webhook
-oc apply -f kserve/networkpolicies.yaml
 ```
 
-## Testing KServe installation
-### Prerequisites
+## Installation of KServe using RHODS
+
 ```bash
-# Create a demo namespace
-oc apply -f kserve/namespace.yaml
+# Install RHODS (or ODH) operator
+oc apply -f rhods/operator.yaml
+oc wait --for=condition=ready pod -l name=rhods-operator -n redhat-ods-operator  --timeout=300s
 
-# For istio: allow to run as user 1337 because of https://istio.io/latest/docs/setup/additional-setup/cni/#compatibility-with-application-init-containers
-# For the python images of KServe: allow to run as user 1000 because of: https://github.com/kserve/kserve/blob/master/python/aiffairness.Dockerfile#L45
-oc adm policy add-scc-to-user anyuid -z default -n kserve-demo
+# Install KServe using KfDef
+oc apply -f rhods/kserve-kfdef.yaml
 ```
+
+## Creating a serving runtime
+
+> 📝 Note: Make sure that your serving runtime image does not need to run as a root or a specific uid.
+> Otherwise `anyuid` is required on the target namespace.
+
+```bash
+# Install a runtime that does work without `anyuid`
+oc apply -f rhods/serving-runtime.yaml
+```
+
+## Testing RHODS installation
+
+```bash
+# Deploy an InferenceService
+cat <<-EOF | oc apply -f -
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  name: "sklearn-iris"
+  namespace: kserve-demo
+  annotations:
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/rewriteAppHTTPProbers: "true"
+    serving.knative.openshift.io/enablePassthrough: "true"
+spec:
+  predictor:
+    model:
+      runtime: kserve-sklearnserver
+      modelFormat:
+        name: sklearn
+      storageUri: "gs://kfserving-examples/models/sklearn/1.0/model"
+EOF
+```
+
+```bash
+# Testing it
+oc get isvc -n kserve-demo
+NAME           URL                                                                                          READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION            AGE
+sklearn-iris   http://sklearn-iris-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com   True           100                              sklearn-iris-predictor-00001   2m14s
+
+curl -k https://sklearn-iris-predictor-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com/v1/models/sklearn-iris:predict -d @./kserve/samples/input-iris.json
+{"predictions":[1,1]}
+```
+
+
+## Testing vanilla KServe installation
 
 ### From google bucket
 From https://kserve.github.io/website/0.10/get_started/first_isvc/#2-create-an-inferenceservice
