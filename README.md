@@ -25,7 +25,7 @@ oc create ns kserve
 oc create ns kserve-demo
 oc create ns knative-serving
 oc apply -f service-mesh/smmr.yaml
-oc apply -f service-mesh/peer-authentication.yaml # we need this because of https://access.redhat.com/documentation/en-us/openshift_container_platform/4.12/html/serverless/serving#serverless-domain-mapping-custom-tls-cert_domain-mapping-custom-tls-cert
+oc apply -f service-mesh/peer-authentication.yaml # we need this because of https://access.redhat.com/documentation/en-us/red_hat_openshift_serverless/1.29/html/serving/configuring-custom-domains-for-knative-services#serverless-domain-mapping-custom-tls-cert_domain-mapping-custom-tls-cert
 
 # Install OpenShift Serverless operator
 oc apply -f serverless/operator.yaml
