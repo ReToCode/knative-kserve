@@ -6,5 +6,4 @@ metadata:
 spec:
   members:
     - knative-serving
-    - kserve
     - kserve-demo

@@ -10,7 +10,7 @@
 oc apply -f service-mesh/operators.yaml
 sleep 30
 oc wait --for=condition=ready pod -l name=istio-operator -n openshift-operators --timeout=300s
-oc wait --for=condition=ready pod -l name=jaeger-operator -n openshift-operators --timeout=300s
+oc wait --for=condition=ready pod -l name=jaeger-operator -A --timeout=300s
 oc wait --for=condition=ready pod -l name=kiali-operator -n openshift-operators --timeout=300s
 
 # Create an istio instance
@@ -21,11 +21,9 @@ oc wait --for=condition=ready pod -l app=istiod -n istio-system --timeout=300s
 oc wait --for=condition=ready pod -l app=istio-ingressgateway -n istio-system --timeout=300s
 oc wait --for=condition=ready pod -l app=istio-egressgateway -n istio-system --timeout=300s
 
-oc create ns kserve
 oc create ns kserve-demo
 oc create ns knative-serving
 oc apply -f service-mesh/smmr.yaml
-oc apply -f service-mesh/peer-authentication.yaml # we need this because of https://access.redhat.com/documentation/en-us/red_hat_openshift_serverless/1.29/html/serving/configuring-custom-domains-for-knative-services#serverless-domain-mapping-custom-tls-cert_domain-mapping-custom-tls-cert
 
 # Install OpenShift Serverless operator
 oc apply -f serverless/operator.yaml
@@ -62,6 +60,7 @@ oc wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=
 ```bash
 # Install RHODS (or ODH) operator
 oc apply -f rhods/operator.yaml
+sleep 15
 oc wait --for=condition=ready pod -l name=rhods-operator -n redhat-ods-operator  --timeout=300s
 
 # Install KServe using KfDef
@@ -420,12 +419,6 @@ dog-breed-pipeline   https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-
 curl -k https://dog-breed-pipeline-kserve-demo.apps.rlehmann-ocp-4-12.serverless.devcluster.openshift.com -d @./kserve/samples/input-cat.json
 
 {"predictions": ["cat"]}% 
-
-# Note for Istio
-Internally, it does something similar to our `Domain-Mapping`, so this 
-> If you use net-istio for Ingress and enable mTLS via SMCP using security.dataPlane.mtls: true, Service Mesh deploys DestinationRules for the *.local host, which does not allow DomainMapping for OpenShift Serverless.
-> To work around this issue, enable mTLS by deploying PeerAuthentication instead of using security.dataPlane.mtls: true.
-also applies here. We cannot use `security.dataPlane.mtls: true` with KServe.
 
 # Kourier
 TODO: This is currently broken in KServe. Wait for https://github.com/kserve/kserve/pull/2830 to be merged to re-test.

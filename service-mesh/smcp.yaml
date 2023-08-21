@@ -4,6 +4,28 @@ metadata:
   name: basic
   namespace: istio-system
 spec:
+  profiles:
+    - default
+  security:
+    dataPlane:
+      mtls: true
+  techPreview:
+    meshConfig:
+      defaultConfig:
+        terminationDrainDuration: 35s
+  gateways:
+    ingress:
+      service:
+        metadata:
+          labels:
+            knative: ingressgateway
+  proxy:
+    networking:
+      trafficControl:
+        inbound:
+          excludedPorts:
+            - 8444 # metrics
+            - 8022 # serving: wait-for-drain k8s pre-stop hook
   addons:
     grafana:
       enabled: false
@@ -11,8 +33,3 @@ spec:
       enabled: false
     prometheus:
       enabled: false
-  security:
-    dataPlane:
-      mtls: false # otherwise inference-graph will not work. We use PeerAuthentication resources to force mTLS
-  profiles:
-    - default
